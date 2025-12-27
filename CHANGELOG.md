@@ -1,6 +1,17 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Advanced power saving and efficiency features for ESP32-S3 and compatible devices:
+  - `enablePowerSave()` - Enable automatic light sleep during BLE idle periods
+  - `isPowerSaveEnabled()` - Check power save status
+  - `setPowerMode()` - Set predefined power modes (Low Power, Balanced, High Performance)
+  - `setLowPowerParams()` - Configure custom low power connection parameters
+  - `getOptimalConnParams()` - Get recommended connection parameters for power efficiency
+- New NimBLE_Power_Saving example demonstrating power management features
+
 ## [2.3.6] 2025-09-05
 
 ## Fixed

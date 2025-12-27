@@ -24,6 +24,9 @@
 #   include "esp_bt.h"
 #  endif
 #  include "nvs_flash.h"
+#  if defined(CONFIG_PM_ENABLE)
+#   include "esp_pm.h"
+#  endif
 #  if defined(CONFIG_NIMBLE_CPP_IDF)
 #   if (ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0) || CONFIG_BT_NIMBLE_LEGACY_VHCI_ENABLE)
 #    include "esp_nimble_hci.h"
@@ -111,6 +114,11 @@ extern "C" int ble_vhci_disc_duplicate_set_max_cache_size(int max_cache_size);
 extern "C" int ble_vhci_disc_duplicate_set_period_refresh_time(int refresh_period_time);
 extern "C" int ble_vhci_disc_duplicate_mode_disable(int mode);
 extern "C" int ble_vhci_disc_duplicate_mode_enable(int mode);
+#  endif
+#  ifndef CONFIG_IDF_TARGET_ESP32P4
+bool     NimBLEDevice::m_powerSaveEnabled{false};
+uint16_t NimBLEDevice::m_lowPowerConnInterval{100};
+uint16_t NimBLEDevice::m_lowPowerLatency{4};
 #  endif
 # endif
 
@@ -581,6 +589,156 @@ int NimBLEDevice::getPower(NimBLETxPowerType type) {
     return ble_phy_tx_power_get();
 # endif
 } // getPower
+
+# ifdef ESP_PLATFORM
+#  ifndef CONFIG_IDF_TARGET_ESP32P4
+/**
+ * @brief Enable or disable automatic power saving mode.
+ * @param [in] enable True to enable power save, false to disable.
+ * @return True if the power save mode was set successfully.
+ * @details When enabled, allows the ESP32 to enter light sleep during BLE idle periods.
+ * This is compatible with ESP32-S3 and other ESP32 variants that support automatic light sleep.
+ * Note: This requires CONFIG_PM_ENABLE to be set in sdkconfig.
+ */
+bool NimBLEDevice::enablePowerSave(bool enable) {
+#   if defined(CONFIG_PM_ENABLE)
+    m_powerSaveEnabled = enable;
+    if (enable) {
+        // Enable automatic light sleep
+        esp_pm_config_t pm_config = {
+            .max_freq_mhz = 240,
+            .min_freq_mhz = 10,
+            .light_sleep_enable = true
+        };
+        esp_err_t err = esp_pm_configure(&pm_config);
+        if (err != ESP_OK) {
+            NIMBLE_LOGE(LOG_TAG, "Failed to configure power management: %d", err);
+            m_powerSaveEnabled = false;
+            return false;
+        }
+        NIMBLE_LOGI(LOG_TAG, "Power save mode enabled with automatic light sleep");
+        return true;
+    } else {
+        // Disable automatic light sleep
+        esp_pm_config_t pm_config = {
+            .max_freq_mhz = 240,
+            .min_freq_mhz = 240,
+            .light_sleep_enable = false
+        };
+        esp_err_t err = esp_pm_configure(&pm_config);
+        if (err != ESP_OK) {
+            NIMBLE_LOGE(LOG_TAG, "Failed to disable power management: %d", err);
+            return false;
+        }
+        NIMBLE_LOGI(LOG_TAG, "Power save mode disabled");
+        return true;
+    }
+#   else
+    (void)enable; // unused parameter
+    NIMBLE_LOGW(LOG_TAG, "Power management not available - CONFIG_PM_ENABLE not set");
+    return false;
+#   endif
+} // enablePowerSave
+
+/**
+ * @brief Check if power save mode is enabled.
+ * @return True if power save is enabled, false otherwise.
+ */
+bool NimBLEDevice::isPowerSaveEnabled() {
+#   if defined(CONFIG_PM_ENABLE)
+    return m_powerSaveEnabled;
+#   else
+    return false;
+#   endif
+} // isPowerSaveEnabled
+
+/**
+ * @brief Set a predefined power mode with optimized settings.
+ * @param [in] mode Power mode: 0 = Low Power, 1 = Balanced, 2 = High Performance.
+ * @return True if the power mode was set successfully.
+ * @details
+ * - Low Power (0): Reduces TX power to minimum and uses longer connection intervals
+ * - Balanced (1): Moderate TX power and connection intervals
+ * - High Performance (2): Maximum TX power and shorter connection intervals
+ */
+bool NimBLEDevice::setPowerMode(uint8_t mode) {
+    bool success = true;
+    
+    switch (mode) {
+        case 0: // Low Power
+            NIMBLE_LOGI(LOG_TAG, "Setting Low Power mode");
+            success = setPower(-12, NimBLETxPowerType::All); // Minimum power
+            m_lowPowerConnInterval = 200; // 200 * 1.25ms = 250ms
+            m_lowPowerLatency = 4;
+            break;
+            
+        case 1: // Balanced
+            NIMBLE_LOGI(LOG_TAG, "Setting Balanced Power mode");
+            success = setPower(0, NimBLETxPowerType::All); // 0 dBm
+            m_lowPowerConnInterval = 80; // 80 * 1.25ms = 100ms
+            m_lowPowerLatency = 2;
+            break;
+            
+        case 2: // High Performance
+            NIMBLE_LOGI(LOG_TAG, "Setting High Performance mode");
+            success = setPower(9, NimBLETxPowerType::All); // Maximum power
+            m_lowPowerConnInterval = 24; // 24 * 1.25ms = 30ms
+            m_lowPowerLatency = 0;
+            break;
+            
+        default:
+            NIMBLE_LOGE(LOG_TAG, "Invalid power mode: %d", mode);
+            return false;
+    }
+    
+    return success;
+} // setPowerMode
+
+/**
+ * @brief Set low power connection parameters.
+ * @param [in] connInterval Connection interval in 1.25ms units (default 100 = 125ms).
+ * @param [in] latency Slave latency in number of connection events (default 4).
+ * @details These parameters will be used by getOptimalConnParams() for low power mode.
+ */
+void NimBLEDevice::setLowPowerParams(uint16_t connInterval, uint16_t latency) {
+    m_lowPowerConnInterval = connInterval;
+    m_lowPowerLatency = latency;
+    NIMBLE_LOGD(LOG_TAG, "Low power params set - interval: %d, latency: %d", connInterval, latency);
+} // setLowPowerParams
+
+/**
+ * @brief Get optimal connection parameters for power efficiency.
+ * @param [out] minInterval Minimum connection interval in 1.25ms units.
+ * @param [out] maxInterval Maximum connection interval in 1.25ms units.
+ * @param [out] latency Slave latency in number of connection events.
+ * @param [out] timeout Supervision timeout in 10ms units.
+ * @param [in] lowPower If true, returns parameters optimized for low power consumption.
+ *                      If false, returns parameters optimized for responsiveness.
+ * @details This helper function provides recommended connection parameters based on
+ * power requirements. Use these values with updateConnParams() for optimal efficiency.
+ */
+void NimBLEDevice::getOptimalConnParams(uint16_t& minInterval, uint16_t& maxInterval, 
+                                        uint16_t& latency, uint16_t& timeout, bool lowPower) {
+    if (lowPower) {
+        // Low power: longer intervals, higher latency
+        minInterval = m_lowPowerConnInterval;
+        maxInterval = m_lowPowerConnInterval + 20; // Add some flexibility
+        latency = m_lowPowerLatency;
+        timeout = 400; // 4 seconds
+        NIMBLE_LOGD(LOG_TAG, "Low power conn params: interval %d-%d, latency %d, timeout %d", 
+                    minInterval, maxInterval, latency, timeout);
+    } else {
+        // High performance: shorter intervals, lower latency
+        minInterval = 24;  // 30ms
+        maxInterval = 48;  // 60ms
+        latency = 0;
+        timeout = 200; // 2 seconds
+        NIMBLE_LOGD(LOG_TAG, "High performance conn params: interval %d-%d, latency %d, timeout %d",
+                    minInterval, maxInterval, latency, timeout);
+    }
+} // getOptimalConnParams
+#  endif // !CONFIG_IDF_TARGET_ESP32P4
+# endif // ESP_PLATFORM
 
 /* -------------------------------------------------------------------------- */
 /*                                MTU FUNCTIONS                               */

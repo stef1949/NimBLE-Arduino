@@ -1,5 +1,26 @@
 # Usage Tips
 
+## Power Saving and Efficiency (ESP32-S3 and compatible devices)
+
+NimBLE-Arduino provides advanced power management features to optimize battery life and efficiency:
+
+### Power Management API
+
+- **`enablePowerSave(bool enable)`** - Enable/disable automatic light sleep during BLE idle periods
+- **`setPowerMode(uint8_t mode)`** - Set predefined power modes (0=Low, 1=Balanced, 2=High Performance)
+- **`getOptimalConnParams(...)`** - Get recommended connection parameters for power efficiency
+- **`setLowPowerParams(...)`** - Configure custom low power parameters
+
+See the [NimBLE_Power_Saving example](../examples/NimBLE_Power_Saving) for detailed usage and configuration.
+
+### Power Optimization Best Practices
+
+1. **Use appropriate power modes** - Choose Low Power mode for battery-operated sensors
+2. **Optimize connection intervals** - Longer intervals reduce power consumption
+3. **Enable automatic light sleep** - Significant power savings during idle periods
+4. **Adjust TX power** - Lower transmission power for nearby devices
+5. **Use connection latency** - Allow peripheral to skip connection events
+
 ## Threadsafety
 
 This library is threadsafe. Attribues can be manipulated freely.
