@@ -48,6 +48,8 @@ If you already use this library and need to migrate your code to version 2.x see
 
 For added performance and optimizations see [Usage tips](docs/Usage_tips.md).
 
+Check out the [NimBLE_Power_Saving example](examples/NimBLE_Power_Saving) for ESP32-S3 and compatible devices to learn about advanced power management features including automatic light sleep, power mode presets, and connection parameter optimization.
+
 More advanced examples highlighting many available features are in examples/ NimBLE_Server, NimBLE_Client.
 
 Beacon examples provided by @beegee-tokyo are in examples/ BLE_Beacon_Scanner, BLE_EddystoneTLM_Beacon.
