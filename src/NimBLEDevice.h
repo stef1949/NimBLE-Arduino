@@ -156,6 +156,14 @@ class NimBLEDevice {
     static esp_power_level_t getPowerLevel(esp_ble_power_type_t powerType = ESP_BLE_PWR_TYPE_DEFAULT);
     static bool setPowerLevel(esp_power_level_t powerLevel, esp_ble_power_type_t powerType = ESP_BLE_PWR_TYPE_DEFAULT);
 #  endif
+
+    /** Power saving and efficiency features for ESP32-S3 and compatible devices */
+    static bool          enablePowerSave(bool enable);
+    static bool          isPowerSaveEnabled();
+    static bool          setPowerMode(uint8_t mode);
+    static void          setLowPowerParams(uint16_t connInterval = 100, uint16_t latency = 4);
+    static void          getOptimalConnParams(uint16_t& minInterval, uint16_t& maxInterval, 
+                                              uint16_t& latency, uint16_t& timeout, bool lowPower = true);
 # endif
 
 # if MYNEWT_VAL(BLE_ROLE_OBSERVER)
@@ -247,6 +255,11 @@ class NimBLEDevice {
     static uint16_t m_scanDuplicateSize;
     static uint8_t  m_scanFilterMode;
     static uint16_t m_scanDuplicateResetTime;
+#  endif
+#  ifndef CONFIG_IDF_TARGET_ESP32P4
+    static bool     m_powerSaveEnabled;
+    static uint16_t m_lowPowerConnInterval;
+    static uint16_t m_lowPowerLatency;
 #  endif
 # endif
 
