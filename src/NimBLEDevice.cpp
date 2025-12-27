@@ -634,6 +634,7 @@ bool NimBLEDevice::enablePowerSave(bool enable) {
         return true;
     }
 #   else
+    (void)enable; // unused parameter
     NIMBLE_LOGW(LOG_TAG, "Power management not available - CONFIG_PM_ENABLE not set");
     return false;
 #   endif
@@ -663,21 +664,21 @@ bool NimBLEDevice::setPowerMode(uint8_t mode) {
         case 0: // Low Power
             NIMBLE_LOGI(LOG_TAG, "Setting Low Power mode");
             success = setPower(-12, NimBLETxPowerType::All); // Minimum power
-            m_lowPowerConnInterval = 200; // 250ms (200 * 1.25ms)
+            m_lowPowerConnInterval = 200; // 200 * 1.25ms = 250ms
             m_lowPowerLatency = 4;
             break;
             
         case 1: // Balanced
             NIMBLE_LOGI(LOG_TAG, "Setting Balanced Power mode");
             success = setPower(0, NimBLETxPowerType::All); // 0 dBm
-            m_lowPowerConnInterval = 80; // 100ms (80 * 1.25ms)
+            m_lowPowerConnInterval = 80; // 80 * 1.25ms = 100ms
             m_lowPowerLatency = 2;
             break;
             
         case 2: // High Performance
             NIMBLE_LOGI(LOG_TAG, "Setting High Performance mode");
             success = setPower(9, NimBLETxPowerType::All); // Maximum power
-            m_lowPowerConnInterval = 24; // 30ms (24 * 1.25ms)
+            m_lowPowerConnInterval = 24; // 24 * 1.25ms = 30ms
             m_lowPowerLatency = 0;
             break;
             

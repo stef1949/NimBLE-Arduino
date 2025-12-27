@@ -13,21 +13,21 @@ This example demonstrates advanced power saving and efficiency features for ESP3
 
 ### Low Power Mode (Mode 0)
 - TX Power: -12 dBm (minimum)
-- Connection Interval: 250ms
+- Connection Interval: 250ms (200 units × 1.25ms)
 - Slave Latency: 4 events
 - **Best for**: Battery-powered sensors, periodic data reporting
 - **Estimated current**: ~1-2 mA during idle (with light sleep)
 
 ### Balanced Mode (Mode 1)
 - TX Power: 0 dBm
-- Connection Interval: 100ms
+- Connection Interval: 100ms (80 units × 1.25ms)
 - Slave Latency: 2 events
 - **Best for**: General purpose applications, moderate responsiveness
 - **Estimated current**: ~2-4 mA during idle
 
 ### High Performance Mode (Mode 2)
 - TX Power: 9 dBm (maximum)
-- Connection Interval: 30ms
+- Connection Interval: 30ms (24 units × 1.25ms)
 - Slave Latency: 0 events
 - **Best for**: Real-time control, gaming, audio streaming
 - **Estimated current**: ~5-8 mA during idle
