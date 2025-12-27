@@ -645,7 +645,11 @@ bool NimBLEDevice::enablePowerSave(bool enable) {
  * @return True if power save is enabled, false otherwise.
  */
 bool NimBLEDevice::isPowerSaveEnabled() {
+#   if defined(CONFIG_PM_ENABLE)
     return m_powerSaveEnabled;
+#   else
+    return false;
+#   endif
 } // isPowerSaveEnabled
 
 /**
